@@ -1,2 +1,2 @@
 # kakubi
-Custom ERC-20 contract: fee &amp; swapping functionality 
+Custom ERC-20 contract: fee &amp; swapping functionality, merkle distribution
