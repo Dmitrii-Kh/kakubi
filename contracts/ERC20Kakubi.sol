@@ -7,10 +7,8 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
 
 contract Kakubi is ERC20, Ownable {
 
-    uint128 public ownerFeeNumerator = 1;
-    uint128 public ownerFeeDenominator = 100;
-    address public kakubiSwap;
-    address public router;
+    uint256 public feeDenominator = 100;
+    address public beneficiary;
     bytes32 public merkleRoot;
     address public immutable kakubiSafe; 
     
@@ -20,24 +18,24 @@ contract Kakubi is ERC20, Ownable {
     event Claimed(uint256 index, address account, uint256 amount);
     event RootChanged(address account, bytes32 merkleRoot);
 
-    constructor(address _router, address _kakubiSafe) ERC20("Kakubi", "KKB") {
-        router = _router;
+    constructor(address _kakubiSafe) ERC20("Kakubi", "KKB") {
         kakubiSafe = _kakubiSafe;
     }
 
     function mint(uint256 amount) external onlySafe {
-        require(amount > 0, "ERC20Kakubi: Amount to mint is equal to 0");
+        require(amount > 0, "ERC20Kakubi: Amount to mint is out of range");
         _mint(address(this), amount);
     }
 
     function transfer(address recipient, uint256 amount) public override returns (bool) {
-        if(ownerFeeNumerator == 0 || _msgSender() == owner || recipient == owner || _msgSender() == address(this)) {
+        // claiming with zero fee
+        if(_msgSender() == address(this)) { 
             _transfer(_msgSender(), recipient, amount);
             return true;
         }
-        uint256 ownerFee = amount / ownerFeeDenominator * ownerFeeNumerator;
-        amount -= ownerFee;
-        _transfer(_msgSender(), kakubiSwap, ownerFee);
+        uint256 fee = amount / feeDenominator;
+        amount -= fee;
+        _transfer(_msgSender(), beneficiary, fee);
         _transfer(_msgSender(), recipient, amount);
         return true;
     }
@@ -54,13 +52,9 @@ contract Kakubi is ERC20, Ownable {
                 _approve(sender, _msgSender(), currentAllowance - amount);
             }
         }
-        if(ownerFeeNumerator == 0 || _msgSender() == router || sender == owner || recipient == owner  || _msgSender() == address(this)) {
-            _transfer(sender, recipient, amount);
-            return true;
-        }
-        uint256 ownerFee = amount / ownerFeeDenominator * ownerFeeNumerator;
-        amount -= ownerFee;
-        _transfer(sender, kakubiSwap, ownerFee);
+        uint256 fee = amount / feeDenominator;
+        amount -= fee;
+        _transfer(sender, beneficiary, fee);
         _transfer(sender, recipient, amount);
         return true;
     }
@@ -69,21 +63,15 @@ contract Kakubi is ERC20, Ownable {
         _burn(owner, value);
     }
 
-    function setSwapAddress(address _kakubiSwap) external onlyOwner {
-        kakubiSwap = _kakubiSwap;
+    function setBeneficiaryAddress(address _beneficiary) external onlySafe {
+        beneficiary = _beneficiary;
     }
 
-    function setRouterAddress(address _router) external onlyOwner {
-        router = _router;
-    }
-
-    function setOwnerFee(
-        uint128 _ownerFeeNumerator, 
-        uint128 _ownerFeeDenominator
-    ) external onlyOwner {
-        require(_ownerFeeDenominator > 0, "ERC20Kakubi: Denominator is equal to zero");
-        ownerFeeNumerator = _ownerFeeNumerator;
-        ownerFeeDenominator = _ownerFeeDenominator;
+    function setFee(
+        uint256 _feeDenominator
+    ) external onlySafe {
+        require(_feeDenominator >= 100, "ERC20Kakubi: Denominator less than 100");
+        feeDenominator = _feeDenominator;
     }
 
     function setRoot(bytes32 _merkleRoot) external onlySafe {

@@ -20,7 +20,7 @@ contract USDCMerkleDistributor {
         kakubiSafe = _kakubiSafe;
     }
 
-     function setRoot(bytes32 _merkleRoot) external onlySafe {
+    function setRoot(bytes32 _merkleRoot) external onlySafe {
         merkleRoot = _merkleRoot;
         emit RootChanged(msg.sender, _merkleRoot);
     }
